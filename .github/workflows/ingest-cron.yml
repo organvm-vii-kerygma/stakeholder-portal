@@ -16,30 +16,37 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - name: Check database availability
-        id: db-check
-        run: |
-          if [ -z "${{ secrets.DATABASE_URL }}" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "::warning::DATABASE_URL not configured — skipping ingestion health check"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Checkout
+        uses: actions/checkout@v7
 
-      - name: Run ingestion health check
-        if: steps.db-check.outputs.skip != 'true'
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate required configuration
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           DEPLOY_URL: ${{ vars.DEPLOY_URL || 'https://stakeholder-portal-ten.vercel.app' }}
+        run: node --import tsx scripts/operational-health.ts require-env CRON_SECRET DEPLOY_URL
+
+      - name: Run ingestion health check
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          DEPLOY_URL: ${{ vars.DEPLOY_URL || 'https://stakeholder-portal-ten.vercel.app' }}
+          INGESTION_MAX_AGE_HOURS: ${{ vars.INGESTION_MAX_AGE_HOURS || '168' }}
+          INGESTION_MAX_STALE_CHUNKS: ${{ vars.INGESTION_MAX_STALE_CHUNKS || '1000' }}
+          INGESTION_MAX_STALE_CURSORS: ${{ vars.INGESTION_MAX_STALE_CURSORS || '5' }}
         run: |
-          RESPONSE=$(curl -sf \
+          response_file="$(mktemp)"
+          curl --fail-with-body --show-error --silent \
+            --retry 2 --retry-all-errors --connect-timeout 10 --max-time 60 \
+            --request POST \
             -H "x-cron-secret: ${CRON_SECRET}" \
-            "${DEPLOY_URL}/api/cron/ingest" 2>&1) || {
-            echo "::warning::Ingestion health check failed or endpoint unreachable"
-            exit 0
-          }
-          echo "$RESPONSE" | python3 -m json.tool
-          STALE=$(echo "$RESPONSE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('chunks',{}).get('stale_7d',0))")
-          if [ "$STALE" -gt 1000 ]; then
-            echo "::warning::${STALE} chunks are older than 7 days — consider running incremental ingestion"
-          fi
+            --output "$response_file" \
+            "${DEPLOY_URL}/api/cron/ingest"
+          node --import tsx scripts/operational-health.ts assert-ingestion < "$response_file"

@@ -26,18 +26,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Check database availability
-        id: db-check
-        run: |
-          if [ -z "${{ secrets.DATABASE_URL }}" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "::warning::DATABASE_URL not configured — skipping maintenance cycle"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Validate required configuration
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node --import tsx scripts/operational-health.ts require-env DATABASE_URL
 
       - name: Run maintenance cycle
-        if: steps.db-check.outputs.skip != 'true'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           MAINTENANCE_CONNECTORS: ${{ vars.MAINTENANCE_CONNECTORS }}
@@ -52,9 +46,9 @@ jobs:
           npm run maintenance:run -- --incremental --connectors "$CONNECTORS"
 
       - name: Upload maintenance scorecard artifact
-        if: steps.db-check.outputs.skip != 'true'
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: maintenance-scorecards
           path: .codex/telemetry/maintenance-scorecards.ndjson
-          if-no-files-found: warn
+          if-no-files-found: error
