@@ -5,15 +5,19 @@ Public intelligence interface for ORGANVM repositories and system metadata.
 ## Local Development
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
 ## Quality Gates
 
 ```bash
+npm audit --audit-level=low
 npm run lint
+npm run typecheck
 npm run test
+npm run ci:quality-gate
+npm run validate-manifest
 npm run build
 ```
 
@@ -29,7 +33,7 @@ npm run build
 - `ADMIN_API_TOKEN=...`: token fallback for admin/automation APIs.
 - `ADMIN_LOGIN_PASSWORD=...`: password for `/api/admin/session` login flow.
 - `ADMIN_SESSION_SECRET=...`: HMAC secret for signed admin session cookies.
-- `CRON_SECRET=...`: secret for `/api/cron/maintenance` trigger.
+- `CRON_SECRET=...`: secret for `/api/cron/maintenance` and `/api/cron/ingest` triggers.
 - `CRON_CONNECTOR_IDS=docs,workspace`: default connector set for cron route when query param not supplied.
 - `ALERT_WEBHOOK_URL=...`: generic webhook sink for critical alerts.
 - `SLACK_WEBHOOK_URL=...`: Slack incoming webhook sink for critical alerts.
@@ -48,7 +52,8 @@ Default feedback event log path (when persistence is enabled):
 
 - `src/data/manifest.json` is a committed snapshot.
 - `npm run generate` refreshes the snapshot from workspace sources.
-- `npm run build` runs `generate-manifest.py --allow-stale-manifest`:
+- `npm run build` runs the TypeScript ingestion worker with
+  `--allow-stale-manifest --skip-vector`:
   - regenerates when source registry files are available
   - keeps existing snapshot when running in isolated CI environments
 
@@ -56,9 +61,44 @@ Default feedback event log path (when persistence is enabled):
 
 GitHub Actions workflow at `.github/workflows/ci.yml` runs:
 
-1. `npm run lint`
-2. `npm run test`
-3. `npm run build`
+1. `npm ci`
+2. `npm run lint`
+3. `npm run typecheck`
+4. `npm run test`
+5. `npm run ci:quality-gate`
+6. `npm run build`
+
+## Production activation contract
+
+The canonical source is repository ID `1173179511` at
+`organvm-vii-kerygma/stakeholder-portal`, branch `main`. A successful build
+from another repository path or an older commit is not a production receipt.
+
+Secret values are never committed. `.env.example` names the runtime contract;
+store the production values in Vercel and the scheduled-job values in GitHub:
+
+| Surface | Required names |
+| --- | --- |
+| Vercel production | `DATABASE_URL`, `GROQ_API_KEY`, `EMBEDDING_API_KEY`, `ADMIN_SESSION_SECRET`, `CRON_SECRET` |
+| GitHub Actions secrets | `DATABASE_URL`, `CRON_SECRET` |
+| GitHub Actions variables | `DEPLOY_URL` (canonical public URL); optional `MAINTENANCE_CONNECTORS` and `INGESTION_MAX_*` SLO overrides |
+
+Before promotion:
+
+1. Confirm Vercel's Git integration resolves stable repository ID `1173179511`
+   to the canonical owner/name and `main`.
+2. Pull or inject production environment variables without writing them to git.
+3. Run `node --import tsx scripts/validate-env.ts`.
+4. Apply migrations with `npm run db:migrate`.
+5. Run `npm run generate:incremental` and verify the corpus is non-empty.
+6. Deploy the exact verified `main` SHA.
+7. Confirm `/api/metrics` reports `stale:false` with a current timestamp.
+8. Dispatch both scheduled workflows and retain their successful run/artifact
+   receipts.
+
+Production is not current merely because the homepage returns HTTP 200. The
+deployment SHA, database freshness, ingestion health, runtime error scan, and
+rollback candidate must all be recorded.
 
 ## Offline Evaluation
 
