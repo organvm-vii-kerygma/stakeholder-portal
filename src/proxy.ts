@@ -1,5 +1,5 @@
 /**
- * Next.js edge middleware.
+ * Next.js request proxy.
  * - /admin/* and /dashboard require a valid NextAuth session (OIDC/SSO).
  * - /api/cron/* is intentionally left out of matchers — it uses CRON_SECRET (M2M).
  * - /api/admin/* is intentionally left out — it accepts both session + ADMIN_API_TOKEN.
@@ -7,7 +7,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
-export default auth(function middleware(req) {
+export default auth(function proxy(req) {
   const { pathname } = req.nextUrl;
 
   // Allow the auth callback flow through unconditionally
@@ -33,7 +33,7 @@ export const config = {
   matcher: [
     "/admin/:path*",
     "/dashboard/:path*",
-    // Exclude static assets, Next internals, cron, and API token routes from middleware
+    // Exclude static assets, Next internals, cron, and API token routes from the proxy
     "/((?!_next/static|_next/image|favicon.ico|api/cron|api/auth).*)",
   ],
 };

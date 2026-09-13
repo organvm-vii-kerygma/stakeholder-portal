@@ -36,7 +36,7 @@ export class WorkspaceConnector implements ConnectorAdapter {
   private get workspaceDir(): string {
     return (this.config?.settings.workspace_dir as string)
       ?? process.env.ORGANVM_WORKSPACE_DIR
-      ?? join(process.env.HOME || "/", "Workspace");
+      ?? join(/* turbopackIgnore: true */ process.env.HOME || "/", "Workspace");
   }
 
   private get organDirs(): string[] {
@@ -68,12 +68,12 @@ export class WorkspaceConnector implements ConnectorAdapter {
 
     try {
       for (const organDir of this.organDirs) {
-        const organPath = join(this.workspaceDir, organDir);
-        if (!existsSync(organPath)) continue;
+        const organPath = join(/* turbopackIgnore: true */ this.workspaceDir, organDir);
+        if (!existsSync(/* turbopackIgnore: true */ organPath)) continue;
 
         const entries = this.safeReaddir(organPath);
         for (const entry of entries) {
-          const repoPath = join(organPath, entry);
+          const repoPath = join(/* turbopackIgnore: true */ organPath, entry);
           if (!this.isGitRepo(repoPath)) continue;
 
           // Check modification time for incremental sync
@@ -153,8 +153,8 @@ export class WorkspaceConnector implements ConnectorAdapter {
 
     // Document artifacts
     for (const docFile of ["CLAUDE.md", "README.md", "seed.yaml"]) {
-      const docPath = join(repoPath, docFile);
-      if (existsSync(docPath)) {
+      const docPath = join(/* turbopackIgnore: true */ repoPath, docFile);
+      if (existsSync(/* turbopackIgnore: true */ docPath)) {
         const content = this.safeReadFile(docPath).slice(0, 2000);
         records.push({
           dedup_key: `workspace:doc:${organDir}/${repoName}/${docFile}`,
@@ -201,12 +201,12 @@ export class WorkspaceConnector implements ConnectorAdapter {
     const result = new Map<string, { repoPath: string; organ: string; files: string[]; headSha: string }>();
 
     for (const organDir of this.organDirs) {
-      const organPath = join(this.workspaceDir, organDir);
-      if (!existsSync(organPath)) continue;
+      const organPath = join(/* turbopackIgnore: true */ this.workspaceDir, organDir);
+      if (!existsSync(/* turbopackIgnore: true */ organPath)) continue;
 
       const entries = this.safeReaddir(organPath);
       for (const entry of entries) {
-        const repoPath = join(organPath, entry);
+        const repoPath = join(/* turbopackIgnore: true */ organPath, entry);
         if (!this.isGitRepo(repoPath)) continue;
 
         const headSha = this.getHeadSha(repoPath);
@@ -262,9 +262,9 @@ export class WorkspaceConnector implements ConnectorAdapter {
     const results: string[] = [];
     const walk = (dir: string) => {
       try {
-        for (const file of readdirSync(dir)) {
-          const full = join(dir, file);
-          const stat = statSync(full);
+        for (const file of readdirSync(/* turbopackIgnore: true */ dir)) {
+          const full = join(/* turbopackIgnore: true */ dir, file);
+          const stat = statSync(/* turbopackIgnore: true */ full);
           if (stat.isDirectory()) {
             if (!file.startsWith(".") && file !== "node_modules" && file !== "dist") {
               walk(full);
@@ -287,11 +287,11 @@ export class WorkspaceConnector implements ConnectorAdapter {
   // -------------------------------------------------------------------------
 
   private readSeedYaml(repoPath: string): Record<string, unknown> {
-    const seedPath = join(repoPath, "seed.yaml");
-    if (!existsSync(seedPath)) return {};
+    const seedPath = join(/* turbopackIgnore: true */ repoPath, "seed.yaml");
+    if (!existsSync(/* turbopackIgnore: true */ seedPath)) return {};
 
     try {
-      const content = readFileSync(seedPath, "utf-8");
+      const content = readFileSync(/* turbopackIgnore: true */ seedPath, "utf-8");
       // Simple YAML key-value extraction (no dependency on yaml parser)
       const result: Record<string, unknown> = {};
       const lines = content.split("\n");
@@ -325,8 +325,8 @@ export class WorkspaceConnector implements ConnectorAdapter {
 
   private readDocFile(repoPath: string): string {
     for (const name of ["CLAUDE.md", "README.md"]) {
-      const p = join(repoPath, name);
-      if (existsSync(p)) {
+      const p = join(/* turbopackIgnore: true */ repoPath, name);
+      if (existsSync(/* turbopackIgnore: true */ p)) {
         const content = this.safeReadFile(p);
         // Extract "What This Is" section or first paragraph
         const whatMatch = content.match(
@@ -368,9 +368,12 @@ export class WorkspaceConnector implements ConnectorAdapter {
 
   private isGitRepo(path: string): boolean {
     try {
-      const stat = statSync(path);
+      const stat = statSync(/* turbopackIgnore: true */ path);
       if (!stat.isDirectory()) return false;
-      return existsSync(join(path, ".git"));
+      return existsSync(
+        /* turbopackIgnore: true */
+        join(/* turbopackIgnore: true */ path, ".git"),
+      );
     } catch {
       return false;
     }
@@ -378,9 +381,9 @@ export class WorkspaceConnector implements ConnectorAdapter {
 
   private getLatestModTime(repoPath: string): Date | null {
     try {
-      const gitDir = join(repoPath, ".git");
-      if (existsSync(gitDir)) {
-        return statSync(gitDir).mtime;
+      const gitDir = join(/* turbopackIgnore: true */ repoPath, ".git");
+      if (existsSync(/* turbopackIgnore: true */ gitDir)) {
+        return statSync(/* turbopackIgnore: true */ gitDir).mtime;
       }
     } catch {
       // ignore
@@ -397,7 +400,9 @@ export class WorkspaceConnector implements ConnectorAdapter {
 
   private safeReaddir(path: string): string[] {
     try {
-      return readdirSync(path).filter((e) => !e.startsWith("."));
+      return readdirSync(/* turbopackIgnore: true */ path).filter(
+        (e) => !e.startsWith("."),
+      );
     } catch {
       return [];
     }
@@ -405,7 +410,7 @@ export class WorkspaceConnector implements ConnectorAdapter {
 
   private safeReadFile(path: string): string {
     try {
-      return readFileSync(path, "utf-8");
+      return readFileSync(/* turbopackIgnore: true */ path, "utf-8");
     } catch {
       return "";
     }
