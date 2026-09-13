@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 type LoginRole = "stakeholder" | "contributor" | "admin";
 
 export function AdminLoginForm() {
+  const router = useRouter();
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<LoginRole>("admin");
   const [userId, setUserId] = useState("");
@@ -30,7 +32,7 @@ export function AdminLoginForm() {
         setLoading(false);
         return;
       }
-      window.location.href = "/admin/intel";
+      router.push("/admin/intel");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login request failed");
       setLoading(false);

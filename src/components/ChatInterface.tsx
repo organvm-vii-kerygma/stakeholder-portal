@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
+import { useRouter } from "next/navigation";
 import { parseSseChunk } from "@/lib/sse";
 import { EvidencePanel } from "./EvidencePanel";
 import type { EvidenceCitation } from "./EvidencePanel";
@@ -140,6 +141,7 @@ function sanitizeHref(href: string | undefined): string {
 }
 
 export function ChatInterface() {
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -168,11 +170,11 @@ export function ChatInterface() {
       try {
         const res = await fetch("/api/admin/intel", { credentials: "include" });
         if (!res.ok) {
-          window.location.href = `/admin/login?return=${encodeURIComponent("/ask?mode=advisor")}`;
+          router.push(`/admin/login?return=${encodeURIComponent("/ask?mode=advisor")}`);
           return;
         }
       } catch {
-        window.location.href = `/admin/login?return=${encodeURIComponent("/ask?mode=advisor")}`;
+        router.push(`/admin/login?return=${encodeURIComponent("/ask?mode=advisor")}`);
         return;
       }
     }
