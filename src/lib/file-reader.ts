@@ -11,7 +11,9 @@ import * as path from "path";
 import { getManifest } from "./manifest";
 import { getOrganOrgDir as getOrganDir } from "./organs";
 
-const WORKSPACE = process.env.ORGANVM_WORKSPACE_DIR || path.join(process.env.HOME || "", "Workspace");
+const WORKSPACE =
+  process.env.ORGANVM_WORKSPACE_DIR ||
+  path.join(/* turbopackIgnore: true */ process.env.HOME || "", "Workspace");
 
 const BLOCKED_DIRS = [".git", "node_modules", "__pycache__", ".venv", "venv", ".tox"];
 const BLOCKED_FILES = [".env", ".env.local", ".env.production"];
@@ -41,7 +43,7 @@ export interface DirectoryListResult {
  * Whether on-demand file access is available (workspace exists on disk).
  */
 export function isFileAccessAvailable(): boolean {
-  return fs.existsSync(WORKSPACE);
+  return fs.existsSync(/* turbopackIgnore: true */ WORKSPACE);
 }
 
 /**
@@ -57,8 +59,8 @@ function resolveRepoPath(repoName: string): string | null {
   const organDir = getOrganDir(repo.organ);
   if (!organDir) return null;
 
-  const repoPath = path.join(WORKSPACE, organDir, repo.name);
-  if (!fs.existsSync(repoPath)) return null;
+  const repoPath = path.join(/* turbopackIgnore: true */ WORKSPACE, organDir, repo.name);
+  if (!fs.existsSync(/* turbopackIgnore: true */ repoPath)) return null;
 
   return repoPath;
 }
@@ -96,9 +98,9 @@ export function readFile(repoName: string, relativePath: string): FileReadResult
   const fullPath = validatePath(repoPath, relativePath);
   if (!fullPath) return null;
 
-  if (!fs.existsSync(fullPath)) return null;
+  if (!fs.existsSync(/* turbopackIgnore: true */ fullPath)) return null;
 
-  const stat = fs.statSync(fullPath);
+  const stat = fs.statSync(/* turbopackIgnore: true */ fullPath);
   if (!stat.isFile()) return null;
 
   let content: string;
@@ -106,13 +108,13 @@ export function readFile(repoName: string, relativePath: string): FileReadResult
 
   if (stat.size > MAX_FILE_SIZE) {
     const buffer = Buffer.alloc(MAX_FILE_SIZE);
-    const fd = fs.openSync(fullPath, "r");
+    const fd = fs.openSync(/* turbopackIgnore: true */ fullPath, "r");
     fs.readSync(fd, buffer, 0, MAX_FILE_SIZE, 0);
     fs.closeSync(fd);
     content = buffer.toString("utf-8");
     truncated = true;
   } else {
-    content = fs.readFileSync(fullPath, "utf-8");
+    content = fs.readFileSync(/* turbopackIgnore: true */ fullPath, "utf-8");
   }
 
   // Binary file check: if content has null bytes, skip
@@ -139,17 +141,20 @@ export function listDirectory(repoName: string, relativePath: string): Directory
   const fullPath = validatePath(repoPath, relativePath || ".");
   if (!fullPath) return null;
 
-  if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isDirectory()) return null;
+  if (
+    !fs.existsSync(/* turbopackIgnore: true */ fullPath) ||
+    !fs.statSync(/* turbopackIgnore: true */ fullPath).isDirectory()
+  ) return null;
 
-  const dirEntries = fs.readdirSync(fullPath);
+  const dirEntries = fs.readdirSync(/* turbopackIgnore: true */ fullPath);
   const entries: DirectoryEntry[] = [];
 
   for (const entry of dirEntries) {
     if (BLOCKED_DIRS.includes(entry) || entry.startsWith(".")) continue;
 
-    const entryPath = path.join(fullPath, entry);
+    const entryPath = path.join(/* turbopackIgnore: true */ fullPath, entry);
     try {
-      const stat = fs.statSync(entryPath);
+      const stat = fs.statSync(/* turbopackIgnore: true */ entryPath);
       entries.push({
         name: entry,
         type: stat.isDirectory() ? "directory" : "file",
