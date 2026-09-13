@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 interface ApiState {
@@ -54,6 +55,7 @@ function pretty(value: unknown): string {
 }
 
 export function AdminIntelPanel() {
+  const router = useRouter();
   const [subjectId, setSubjectId] = useState("");
   const [evalSamplesText, setEvalSamplesText] = useState(DEFAULT_EVAL_SAMPLES);
   const [apiState, setApiState] = useState<ApiState>({
@@ -189,7 +191,7 @@ export function AdminIntelPanel() {
         last_response: "// Logged out",
       });
       await refreshSession();
-      window.location.href = "/admin/login";
+      router.push("/admin/login");
     } catch (error) {
       setApiState({
         loading: false,
